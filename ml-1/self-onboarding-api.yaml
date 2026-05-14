@@ -1,0 +1,419 @@
+---
+openapi: 3.0.0
+info:
+    version: 1.0.0
+    title: Self-onboarding API (extract)
+    termsOfService: https://www.lumapps.com/legal/terms-of-use/
+    contact:
+        name: LumApps Support team
+        url: https://support.lumapps.com
+        email: support@lumapps.com
+    license:
+        name: LumApps API & SDK Terms of use
+        url: https://www.lumapps.com/legal/sdk-terms-of-use/
+    x-logo:
+        altText: LumApps logo
+        url: https://cdn.welcometothejungle.co/uploads/organization/logo/1173/152120/lumapps.png
+servers:
+    - url: https://go-cell-001.api.lumapps.com
+      description: Production Google US 1
+    - url: https://go-cell-002.api.lumapps.com
+      description: Production Google US 2
+    - url: https://go-cell-003.api.lumapps.com
+      description: Production Google EU 3
+    - url: https://go-cell-005.api.lumapps.com
+      description: Production Google EU 5
+    - url: https://ms-cell-001.api.lumapps.com
+      description: Production Microsoft EU 1
+    - url: https://ms-cell-002.api.lumapps.com
+      description: Production Microsoft JP 2
+    - url: https://go-cell-001.beta.api.lumapps.com
+      description: Customer Sandbox Google US 1
+    - url: https://go-cell-003.beta.api.lumapps.com
+      description: Customer Sandbox Google EU 3
+    - url: https://ms-cell-001.beta.api.lumapps.com
+      description: Customer Sandbox Microsoft EU 1
+security:
+    - bearerJwt: []
+tags:
+    - name: Platform governance - User
+      description: Manage platform users.
+paths:
+    /v2/organizations/{organizationId}/self-onboardings/magic-links:
+        parameters:
+            - $ref: '#/components/parameters/OrganizationIdInPath'
+        post:
+            security: []
+            summary: Generate a magic link in a self onboarding flow (alpha)
+            description: |
+                Allows a non-authenticated user to self-onboard to LumApps depending on
+                pre-provisioned users with no email.
+                It validates the user information depending on the self onboarding configuration.
+                If the user information is correct, an authentication link is sent to the
+                given email as a mobile OTP.
+            operationId: self-onboarding-generate-magic-link
+            tags:
+                - Platform governance - User
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - lastName
+                                - dateOfBirth
+                                - employeeId
+                                - email
+                            properties:
+                                firstName:
+                                    type: string
+                                    description: User's first name
+                                    example: John
+                                lastName:
+                                    type: string
+                                    description: User's last name
+                                    example: Doe
+                                dateOfBirth:
+                                    type: string
+                                    description: User's date of birth as ISO 8601 (`YYY-MM-DD`)
+                                    format: date
+                                    example: '1992-01-02'
+                                employeeId:
+                                    type: string
+                                    description: User's employee ID
+                                    example: '9812398374'
+                                email:
+                                    type: string
+                                    description: User's email. It will be used to sent an OTP
+                                    format: email
+                                    example: john.doe@example.org
+                                ssn:
+                                    type: string
+                                    description: User's SSN
+                                    example: 039-16-4709
+            responses:
+                '204':
+                    description: Generate a magic link for self-onboarding
+                default:
+                    $ref: '#/components/responses/ErrorResponse'
+    /v2/organizations/{organizationId}/self-onboardings/configuration:
+        parameters:
+            - $ref: '#/components/parameters/OrganizationIdInPath'
+        get:
+            summary: Retrieve the self onboarding configuration (alpha)
+            operationId: get-self-onboarding-configuration
+            tags:
+                - Platform governance - User
+            responses:
+                '200':
+                    description: The self-onboarding configuration
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SelfOnboardingConfiguration'
+                default:
+                    $ref: '#/components/responses/ErrorResponse'
+        put:
+            summary: Update the self onboarding configuration (alpha)
+            operationId: update-self-onboarding-configuration
+            tags:
+                - Platform governance - User
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SelfOnboardingConfiguration'
+            responses:
+                '200':
+                    description: The self-onboarding configuration
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SelfOnboardingConfiguration'
+                default:
+                    $ref: '#/components/responses/ErrorResponse'
+    /v2/organizations/{organizationId}/userprofile/field-definitions:
+        parameters:
+            - $ref: '#/components/parameters/OrganizationIdInPath'
+            - $ref: '#/components/parameters/AcceptLanguageInHeader'
+        get:
+            tags:
+                - Profile field
+            summary: Search for profile fields (beta)
+            description: Search for profile fields with the specified criteria. String criteria can be specified using search operators. 'eq' (equality) and 'contains' are supported.
+            operationId: monolite.use_cases.users.userprofile_list_field_defs
+            parameters:
+                - name: type
+                  in: query
+                  description: The type of profile field to return.
+                  schema:
+                      $ref: '#/components/schemas/ProfileFieldType'
+            responses:
+                '200':
+                    description: Field definition search response.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    items:
+                                        type: array
+                                        description: The matching profile field definitions.
+                                        items:
+                                            $ref: '#/components/schemas/BaseProfileFieldDefinition'
+                                    cursor:
+                                        $ref: '#/components/schemas/Cursor'
+                                    more:
+                                        type: boolean
+                                        description: Whether more results are available.
+                '403':
+                    $ref: '#/components/responses/ErrorResponse'
+                default:
+                    $ref: '#/components/responses/ErrorResponse'
+components:
+    securitySchemes:
+        bearerJwt:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+    parameters:
+        OrganizationIdInPath:
+            name: organizationId
+            in: path
+            description: The id of the organization
+            schema:
+                $ref: '#/components/schemas/OrganizationId'
+            required: true
+        AcceptLanguageInHeader:
+            in: header
+            name: Accept-Language
+            description: The desired languages, in order of priority.
+            schema:
+                type: string
+                description: |
+                    [ISO 639-1](https://www.iso.org/obp/ui#iso:std:iso:639:-1:ed-1:v1:en) language code,
+                    as decided [here](https://github.com/lumapps/api-v2/blob/master/doc/adr/
+                    0012-choose-language-code-format.md#language-code-iso-639-1).
+            example: fr-FR,en-FR;q=0.9,en;q=0.8
+    schemas:
+        BaseProfileFieldDefinition:
+            type: object
+            properties:
+                id:
+                    type: string
+                    description: Internal identifier of the field
+                    example: '189721165221054788990940230901562764775'
+                order:
+                    type: integer
+                    description: The display order of the field.
+                title:
+                    $ref: '#/components/schemas/LocalizedString'
+                type:
+                    $ref: '#/components/schemas/ProfileFieldType'
+                searchable:
+                    type: boolean
+                    default: false
+                    description: Whether the field can be used as a search criteria.
+                iconClass:
+                    type: string
+                    description: Class of the icon of the field.
+                    nullable: true
+                    example: office
+                metadataLibraryId:
+                    type: string
+                    maxLength: 50
+                    description: ID of the metadata library
+                    example: '7184095772135238'
+                    nullable: true
+            required:
+                - id
+                - order
+                - searchable
+                - title
+                - type
+            example:
+                id: '189721165221054788990940230901562764775'
+                order: 1
+                title:
+                    value: hobby
+                    lang: en
+                    translations:
+                        en: hobby
+                        fr: passion
+                type: text
+                searchable: false
+                iconClass: hobby
+        ProfileFieldType:
+            type: string
+            enum:
+                - text
+                - longText
+                - int
+                - float
+                - date
+                - user
+                - group
+                - metadata
+                - email
+                - phone
+                - mobile_phone
+                - chat
+                - link
+            description: Type of the profile or contact field (e.g. *text*, *date*).
+        SelfOnboardingConfiguration:
+            type: object
+            required:
+                - dateOfBirthFieldDefinitionId
+                - additionalValidatedFields
+            properties:
+                dateOfBirthFieldDefinitionId:
+                    type: string
+                    description: The date of birth field definition ID in user directory
+                    example: Date of birth
+                ssnFieldDefinitionId:
+                    type: string
+                    description: |
+                        The SSN field definition ID in user directory.
+                        Only required of the `additionalValidatedFields` has `ssn`.
+                    example: SSN
+                additionalValidatedFields:
+                    type: array
+                    description: The additional fields to match for self registration
+                    items:
+                        type: string
+                        enum:
+                            - first_name
+                            - ssn
+                        example: first_name
+        OrganizationId:
+            title: OrganizationId
+            type: string
+            description: The id of the organization.
+            example: '5769628858664940'
+        Error:
+            title: Error
+            type: object
+            description: |
+                Common error model. Follows the same specification found here:
+                https://jsonapi.org/format/#error-objects
+            properties:
+                links:
+                    type: object
+                    properties:
+                        about:
+                            type: string
+                            description: |
+                                A link that leads to further details about this particular occurrence of the
+                                problem.
+                            format: uri
+                    required:
+                        - about
+                status:
+                    type: string
+                    description: |
+                        The HTTP status code applicable to this problem, expressed as an integer value. Only
+                        provided if useful.
+                code:
+                    type: string
+                    description: |
+                        An application-specific error code, expressed as a string value.
+                title:
+                    type: string
+                    description: |
+                        A short, human-readable summary of the problem that SHOULD NOT change from occurrence
+                        to occurrence of the problem, except for purposes of localization.
+                detail:
+                    type: string
+                    description: |
+                        A human-readable explanation specific to this occurrence of the problem. Like title,
+                        this field’s value can be localized.
+                source:
+                    type: object
+                    properties:
+                        pointer:
+                            type: string
+                            description: |
+                                A JSON Pointer [RFC6901] to the associated entity in the request document
+                                example:
+                                  - "/data" for a primary data object
+                                  - "/data/attributes/title" for a specific attribute
+                        parameter:
+                            type: string
+                            description: A string indicating which URI query parameter caused the error.
+                meta:
+                    type: object
+                    description: A meta object containing non-standard meta-information about the error.
+            required:
+                - code
+                - title
+                - detail
+        Cursor:
+            title: Cursor
+            type: string
+            description: |
+                The cursor field is a string used for pagination returned in API responses.
+                When a request retrieves a large dataset that spans multiple pages, the cursor field
+                provides a reference to the next set of results.
+                Include this field in subsequent API requests to continue fetching the next page of data.
+                If the `more` property is false, the cursor is not provided. It indicates there are no more
+                pages available.
+            example: eyJvZmZzZXQiOiAzMH0=
+        LanguageTag:
+            description: |
+                BCP-47 compliant language tag, formed of an ISO-639-1 language code (e.g. 'en', 'fr'),
+                and optionally an ISO-3166-2 country code ('BR', 'TW').
+                The BCP-47 format ('pt-BR') is strictly enforced in responses but inputs such as 'pt_br' are
+                accepted in requests for backward compatibility.
+            type: string
+            pattern: ^[a-z]{2,3}([-_][a-zA-Z]{2})?$
+            example: pt-BR
+        LocalizedString:
+            type: object
+            description: |
+                Representation of a required localized string. Required means empty values are not allowed,
+                plus that if a language is present in a different localized field of the entity, it must be
+                defined here as well.
+                For example, if a 'description' field holds a value in Spanish, the required 'title' localized field
+                must also have a Spanish transation.
+            properties:
+                value:
+                    type: string
+                    readOnly: true
+                    description: Value of the property for the resolved language 'lang'
+                    example: A value
+                lang:
+                    allOf:
+                        - $ref: '#/components/schemas/LanguageTag'
+                        - readOnly: true
+                    example: en
+                translations:
+                    type: object
+                    description: |
+                        The list of available translations for the property. It is required as an input parameter.
+                    additionalProperties:
+                        type: string
+                        x-additionalPropertiesName: Language
+                    example:
+                        en: A value
+                        fr: Une valeur
+            required:
+                - lang
+                - value
+                - translations
+    responses:
+        ErrorResponse:
+            description: The response when one or more errors occured
+            content:
+                application/json:
+                    schema:
+                        description: A collection of errors
+                        type: object
+                        required:
+                            - errors
+                        properties:
+                            errors:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Error'

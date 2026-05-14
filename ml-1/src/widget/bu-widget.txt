@@ -1,0 +1,327 @@
+import React, { useMemo, useRef, useState } from 'react';
+import { IntlProvider } from 'react-intl';
+import { mdiAccount, mdiCalendar, mdiCardAccountDetails, mdiEmail } from '@lumx/icons';
+import { Button, DatePickerField, Message, Size, Switch, TextField, Theme } from '@lumx/react';
+import axios from 'axios';
+import ReCAPTCHA from 'react-google-recaptcha';
+
+import {
+    NotificationsProvider,
+    PredefinedErrorBoundary,
+    useContext,
+    useCurrentUser,
+    useLanguage,
+    useNotifications,
+    useOrganization,
+    useLumdrianContext,
+    useProperties,
+} from 'lumapps-sdk-js';
+
+import messagesEn from '../translations/en.json';
+import messagesFr from '../translations/fr.json';
+
+import { SampleAppGlobalParams, SampleAppParams } from './types';
+import './Widget.css';
+
+const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY'; // TODO: replace with actual site key
+const LOGIN_URL = 'YOUR_LOGIN_URL'; // TODO: replace with actual login URL
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const formatDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+type Widget = import('lumapps-sdk-js').ContentComponent<SampleAppGlobalParams, SampleAppParams>;
+
+const Widget: Widget = ({ theme = Theme.light }) => {
+    const [lastName, setLastName] = useState('');
+    const [dob, setDob] = useState<Date | undefined>(undefined);
+    const [email, setEmail] = useState('');
+    const [confirmEmail, setConfirmEmail] = useState('');
+    const [employeeId, setEmployeeId] = useState('');
+    const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [apiError, setApiError] = useState<string | undefined>();
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const captchaRef = useRef<ReCAPTCHA>(null);
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [useMockApi, setUseMockApi] = useState(true);
+    const [mockSuccess, setMockSuccess] = useState(true);
+    const mockApiCall = () => {
+        if (mockSuccess) return Promise.resolve();
+        return Promise.reject(
+            Object.assign(new Error('Mock API error'), {
+                response: {
+                    data: {
+                        errors: [{ detail: 'Mock error: no matching user was found for the details provided.' }],
+                    },
+                },
+            }),
+        );
+    };
+
+    useNotifications();
+
+    const context = useContext();
+    const currentUser = useCurrentUser();
+    const organization = useOrganization();
+    const lumdrianContext = useLumdrianContext();
+    const { displayLanguage } = useLanguage();
+    const properties = useProperties();
+
+    // const apiEndpoint = `${context?.haussmannCell}/v2/organizations/${organization?.id}/self-onboardings/magic-links`;
+    const apiEndpoint = `/v2/organizations/${organization?.id}/self-onboardings/magic-links`;
+
+    /* eslint-disable no-console */
+    console.log('useContext', context);
+    console.log('useCurrentUser', currentUser);
+    console.log('useOrganization', organization);
+    console.log('apiEndpoint', apiEndpoint);
+    console.log('lumdrianContext', lumdrianContext);
+    console.log('displayLanguage', displayLanguage);
+    console.log('properties', properties);
+    /* eslint-enable no-console */
+
+    const lastNameError = submitted && !lastName.trim() ? 'Last name is required' : undefined;
+    const dobError = submitted && !dob ? 'Date of birth is required' : undefined;
+    const employeeIdError = submitted && !employeeId.trim() ? 'Employee ID is required' : undefined;
+    const emailError =
+        submitted && (!email || !EMAIL_PATTERN.test(email)) ? 'A valid email address is required' : undefined;
+    let confirmEmailError: string | undefined;
+    if (submitted) {
+        if (!confirmEmail.trim()) {
+            confirmEmailError = 'Please confirm your email address';
+        } else if (confirmEmail !== email) {
+            confirmEmailError = 'Email addresses do not match';
+        }
+    }
+
+    const isValid =
+        !!lastName.trim() &&
+        !!dob &&
+        !!employeeId.trim() &&
+        EMAIL_PATTERN.test(email) &&
+        confirmEmail === email &&
+        (useMockApi || !!captchaToken);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitted(true);
+        if (!isValid) return;
+
+        setIsSubmitting(true);
+        setApiError(undefined);
+        const payload = {
+            lastName: lastName.trim(),
+            dateOfBirth: formatDate(dob!),
+            employeeId: employeeId.trim(),
+            email,
+        };
+        /* eslint-disable no-console */
+        console.log('POST payload:', payload);
+        /* eslint-enable no-console */
+        try {
+            await (useMockApi ? mockApiCall() : axios.post(apiEndpoint, payload));
+            setIsSuccess(true);
+        } catch (err) {
+            const detail =
+                (axios.isAxiosError(err) && err.response?.data?.errors?.[0]?.detail) ||
+                'Submission failed. Lorem ipsum dolor sit amet.';
+            setApiError(detail);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (isSuccess) {
+        return (
+            <div className="registration-form__success">
+                <h1 className="registration-form__success-title lumx-typography-custom-title3 ">
+                    Success! You&apos;re all set.
+                </h1>
+                <p className="registration-form__success-body">Your account is ready. Follow these Steps to log in:</p>
+                <ul>
+                    <li className="lumx-spacing-margin-bottom-huge">
+                        <strong>Step 1:</strong> Click the button below to go to the login screen.
+                    </li>
+                    <li className="lumx-spacing-margin-bottom-huge">
+                        <strong>Step 2:</strong> Select <strong>&ldquo;Sign in with email link&rdquo;</strong>.
+                    </li>
+                    <li>
+                        <strong>Step 3:</strong> Enter your email <strong>({email})</strong> to receive your secure
+                        entry link.
+                    </li>
+                </ul>
+
+                <p className="lumx-typography-caption">
+                    <em>
+                        Not your email?{' '}
+                        <button
+                            type="button"
+                            className="registration-form__reset-link"
+                            onClick={() => {
+                                setLastName('');
+                                setDob(undefined);
+                                setEmployeeId('');
+                                setEmail('');
+                                setConfirmEmail('');
+                                setCaptchaToken(null);
+                                captchaRef.current?.reset();
+                                setSubmitted(false);
+                                setIsSuccess(false);
+                            }}
+                        >
+                            Use a different email address
+                        </button>
+                    </em>
+                    .
+                </p>
+
+                <a href={LOGIN_URL} className="registration-form__success-action">
+                    <Button theme={theme} size={Size.m}>
+                        Proceed to Login
+                    </Button>
+                </a>
+            </div>
+        );
+    }
+
+    return (
+        <form className="registration-form" onSubmit={handleSubmit}>
+            <h1 className="lumx-typography-custom-title3">Enter your details</h1>
+            <div>
+                <TextField
+                    label="Last name"
+                    value={lastName}
+                    onChange={setLastName}
+                    hasError={!!lastNameError}
+                    helper={lastNameError}
+                    icon={mdiAccount}
+                    isRequired
+                    theme={theme}
+                    className=""
+                />
+
+                <DatePickerField
+                    locale="en"
+                    label="Date of birth"
+                    icon={mdiCalendar}
+                    value={dob}
+                    onChange={setDob}
+                    hasError={!!dobError}
+                    helper={dobError}
+                    isRequired
+                    theme={theme}
+                    nextButtonProps={{ label: 'Next month' }}
+                    previousButtonProps={{ label: 'Previous month' }}
+                />
+
+                <TextField
+                    label="Employee ID"
+                    value={employeeId}
+                    onChange={setEmployeeId}
+                    hasError={!!employeeIdError}
+                    helper={employeeIdError}
+                    icon={mdiCardAccountDetails}
+                    isRequired
+                    theme={theme}
+                    className=""
+                />
+
+                <TextField
+                    label="Email"
+                    value={email}
+                    onChange={setEmail}
+                    hasError={!!emailError}
+                    helper={emailError}
+                    icon={mdiEmail}
+                    isRequired
+                    theme={theme}
+                    className=""
+                />
+
+                <div onPaste={(e) => e.preventDefault()}>
+                    <TextField
+                        label="Confirm email"
+                        value={confirmEmail}
+                        onChange={setConfirmEmail}
+                        hasError={!!confirmEmailError}
+                        helper={confirmEmailError}
+                        icon={mdiEmail}
+                        isRequired
+                        theme={theme}
+                        className=""
+                    />
+                </div>
+
+                <div className="registration-form__captcha ">
+                    <ReCAPTCHA
+                        ref={captchaRef}
+                        sitekey={RECAPTCHA_SITE_KEY}
+                        onChange={setCaptchaToken}
+                        onExpired={() => setCaptchaToken(null)}
+                        theme={theme === Theme.dark ? 'dark' : 'light'}
+                    />
+                </div>
+
+                {apiError && (
+                    <Message kind="error" hasBackground>
+                        <p>{apiError}</p>
+                    </Message>
+                )}
+
+                <div className="registration-form__submit ">
+                    <Button
+                        onClick={handleSubmit}
+                        isDisabled={isSubmitting}
+                        theme={theme}
+                        size={Size.m}
+                        className="lumx-color-background-primary-N"
+                    >
+                        {isSubmitting ? 'Submitting…' : 'Submit'}
+                    </Button>
+                </div>
+            </div>
+
+            <div className="registration-form__dev-tools">
+                <p className="registration-form__dev-tools-label">Testing controls</p>
+                <Switch isChecked={useMockApi} onChange={setUseMockApi}>
+                    Use mock API
+                </Switch>
+                <Switch isChecked={mockSuccess} onChange={setMockSuccess}>
+                    Mock success (off = mock error)
+                </Switch>
+            </div>
+        </form>
+    );
+};
+
+const NotificationAwareWidget: Widget = (props) => {
+    const { displayLanguage } = useLanguage();
+
+    const messages = useMemo(
+        () => ({
+            en: messagesEn,
+            fr: messagesFr,
+        }),
+        [],
+    );
+    console.log('messages', messages);
+
+    const lang = useMemo(
+        () => (Object.keys(messages).includes(displayLanguage) ? displayLanguage : 'en'),
+        [displayLanguage, messages],
+    );
+
+    return (
+        <IntlProvider locale={lang} messages={messages[lang as keyof typeof messages]}>
+            <NotificationsProvider>
+                <PredefinedErrorBoundary>
+                    <Widget {...props} />
+                </PredefinedErrorBoundary>
+            </NotificationsProvider>
+        </IntlProvider>
+    );
+};
+
+export { NotificationAwareWidget as Widget };

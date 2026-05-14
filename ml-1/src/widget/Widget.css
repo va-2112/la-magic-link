@@ -1,0 +1,81 @@
+.registration-form__captcha {
+    display: flex;
+    justify-content: center;
+}
+
+.registration-form__submit {
+    display: flex;
+    justify-content: center;
+}
+
+.registration-form__success {
+    display: flex;
+    flex-direction: column;
+
+    padding: 24px;
+    gap: 24px;
+}
+
+.registration-form {
+    display: flex;
+    flex-direction: column;
+
+    padding: 24px;
+    gap: 24px;
+}
+
+.registration-form > div {
+    display: flex;
+    flex-direction: column;
+
+    gap: 24px;
+}
+
+.registration-form__success-title {
+    margin: 0;
+}
+
+.registration-form__success-body {
+    margin: 0;
+}
+
+.registration-form__success-action {
+    align-self: center;
+    text-decoration: none;
+}
+
+.registration-form__dev-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    border: 2px dashed orange;
+    border-radius: 4px;
+}
+
+.registration-form__dev-tools-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: orange;
+}
+
+.registration-form__reset-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    font: inherit;
+    color: var(--lumx-color-primary-N);
+}
+
+ul {
+    margin-inline-start: 24px;
+}
+
+.registration-form .theme-lumapps .lumx-select,
+.registration-form .theme-lumapps .lumx-text-field {
+    padding-bottom: 0;
+    padding-top: 0;
+}
